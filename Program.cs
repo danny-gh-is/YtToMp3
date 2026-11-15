@@ -107,17 +107,24 @@ namespace YtToMp3
                 var args = new StringBuilder();
                 args.Append("--no-config ");
                 args.Append("--no-playlist ");
-                args.Append("--extractor-args \"youtube:player_client=android\" ");
                 if (video)
                 {
                     // Best video + best audio, merged into MP4 (merging requires ffmpeg).
-                    args.Append("-f \"bv*+ba/b\" ");
+                    // Selector order: 1) HLS (m3u8) video+audio, which downloads at full resolution
+                    // without a PO token; 2) regular DASH streams; 3) best single combined file.
+                    // YouTube returns 403 for the DASH https streams when no PO token is available.
+                    // The default clients are used (no player_client override) so full-resolution formats are offered.
+                    args.Append("-f \"bv*[protocol^=m3u8]+ba[protocol^=m3u8]/bv*+ba/b\" ");
                     args.Append("--merge-output-format mp4 ");
                     args.Append($"-P \"{downloadsDir}\" ");
                     args.Append("-o \"%(title)s.%(ext)s\" ");
+                    // Report what was actually saved (--print implies --quiet, so re-enable normal output).
+                    args.Append("--no-quiet ");
+                    args.Append("--print \"after_move:Saved: %(filepath)s [%(width)sx%(height)s]\" ");
                 }
                 else
                 {
+                    args.Append("--extractor-args \"youtube:player_client=android\" ");
                     args.Append("-x ");
                     args.Append("--audio-format mp3 ");
                     args.Append("--audio-quality 0 ");
